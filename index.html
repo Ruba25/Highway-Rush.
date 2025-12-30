@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Highway Rush - Car Dodging Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-wrapper {
+            position: relative;
+            background: #000;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #87CEEB 0%, #4682B4 30%, #2F4F4F 100%);
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            z-index: 10;
+        }
+
+        .controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+
+        .start-screen, .game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .start-screen h1, .game-over-screen h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ffd700;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+        }
+
+        .start-screen p, .game-over-screen p {
+            font-size: 18px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .start-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .pause-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 200;
+        }
+
+        .pause-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .pause-button.playing {
+            display: flex;
+        }
+
+        .pause-button.hidden {
+            display: none;
+        }
+
+        .pause-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 150;
+        }
+
+        .pause-screen h1 {
+            font-size: 48px;
+            margin-bottom: 30px;
+            color: #ffd700;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+        }
+
+        .countdown-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 150;
+        }
+
+        .countdown-screen h1 {
+            font-size: 120px;
+            color: #ffd700;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.8);
+            animation: countdownPulse 1s ease-in-out;
+        }
+
+        @keyframes countdownPulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="hud">
+            <div>Score: <span id="score">0</span></div>
+            <div>Level: <span id="level">1</span></div>
+        </div>
+
+        <button id="pauseButton" class="pause-button hidden">⏸️</button>
+
+        <div id="pauseScreen" class="pause-screen hidden">
+            <h1>PAUSED</h1>
+            <button id="resumeButton" class="start-button">RESUME GAME</button>
+        </div>
+
+        <div id="countdownScreen" class="countdown-screen hidden">
+            <h1 id="countdownText">3</h1>
+        </div>
+
+        <div class="controls-info">
+            Use Arrow Keys or WASD to steer your car<br>
+            Press SPACE or P to pause/resume
+        </div>
+
+        <div id="startScreen" class="start-screen">
+            <h1>🏎️ HIGHWAY RUSH</h1>
+            <p>Navigate through traffic and avoid collisions!</p>
+            <p>The longer you survive, the higher your score.</p>
+            <button id="startButton" class="start-button">START GAME</button>
+        </div>
+
+        <div id="gameOverScreen" class="game-over-screen hidden">
+            <h1>Game Over!</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>You reached Level <span id="finalLevel">1</span></p>
+            <button id="restartButton" class="start-button">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        class HighwayRush {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.startScreen = document.getElementById('startScreen');
+                this.gameOverScreen = document.getElementById('gameOverScreen');
+                this.startButton = document.getElementById('startButton');
+                this.restartButton = document.getElementById('restartButton');
+                this.pauseButton = document.getElementById('pauseButton');
+                this.pauseScreen = document.getElementById('pauseScreen');
+                this.resumeButton = document.getElementById('resumeButton');
+                this.countdownScreen = document.getElementById('countdownScreen');
+                this.countdownText = document.getElementById('countdownText');
+                
+                this.gameState = 'start';
+                this.score = 0;
+                this.level = 1;
+                this.gameSpeed = 1;
+                this.roadOffset = 0;
+                
+                this.player = {
+                    x: this.canvas.width / 2 - 25,
+                    y: this.canvas.height - 120,
+                    width: 50,
+                    height: 90,
+                    speed: 300
+                };
+                
+                this.obstacles = [];
+                this.lastSpawn = 0;
+                this.spawnInterval = 1500;
+                
+                this.keys = {};
+                this.lastTime = 0;
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.gameLoop();
+            }
+            
+            setupEventListeners() {
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                    
+                    // Pause/Resume with Space key or P key
+                    if ((e.code === 'Space' || e.code === 'KeyP') && this.gameState === 'playing') {
+                        this.gameState = 'paused';
+                        this.pauseButton.textContent = '▶️';
+                        this.pauseScreen.classList.remove('hidden');
+                        e.preventDefault(); // Prevent scrolling with spacebar
+                    } else if ((e.code === 'Space' || e.code === 'KeyP') && this.gameState === 'paused') {
+                        this.resumeGame();
+                        e.preventDefault();
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+                
+                // Button controls
+                this.startButton.addEventListener('click', () => this.startGame());
+                this.restartButton.addEventListener('click', () => this.startGame());
+                this.pauseButton.addEventListener('click', () => this.togglePause());
+                this.resumeButton.addEventListener('click', () => this.resumeGame());
+            }
+
+            togglePause() {
+                if (this.gameState === 'playing') {
+                    this.gameState = 'paused';
+                    this.pauseButton.textContent = '▶️';
+                    this.pauseScreen.classList.remove('hidden');
+                } else if (this.gameState === 'paused') {
+                    this.resumeGame();
+                }
+            }
+
+            resumeGame() {
+                this.pauseScreen.classList.add('hidden');
+                this.startCountdown();
+            }
+
+            startCountdown() {
+                this.countdownScreen.classList.remove('hidden');
+                let count = 3;
+                this.countdownText.textContent = count;
+                
+                const countdownInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        this.countdownText.textContent = count;
+                    } else {
+                        this.countdownText.textContent = 'GO!';
+                        setTimeout(() => {
+                            this.countdownScreen.classList.add('hidden');
+                            this.gameState = 'playing';
+                            this.pauseButton.textContent = '⏸️';
+                            clearInterval(countdownInterval);
+                        }, 500); // Show "GO!" for 500ms
+                    }
+                }, 1000); // 1 second intervals
+            }
+            
+            startGame() {
+                this.gameState = 'playing';
+                this.score = 0;
+                this.level = 1;
+                this.gameSpeed = 1;
+                this.roadOffset = 0;
+                this.player.x = this.canvas.width / 2 - 25;
+                this.player.y = this.canvas.height - 120;
+                this.obstacles = [];
+                this.lastSpawn = 0;
+                this.scoreTimer = 0; // Add timer for continuous scoring
+                
+                this.startScreen.classList.add('hidden');
+                this.gameOverScreen.classList.add('hidden');
+                this.pauseButton.classList.remove('hidden');
+                this.pauseButton.textContent = '⏸️';
+                
+                this.updateHUD();
+            }
+            
+            spawnObstacle() {
+                const colors = ['#dc143c', '#ff6b35', '#f7931e', '#7b68ee', '#32cd32'];
+                const lanes = [200, 300, 400, 500];
+                
+                // Try to find a lane without recent obstacles
+                const availableLanes = lanes.filter(laneX => {
+                    // Check if there's any obstacle in this lane that's too close to the top
+                    return !this.obstacles.some(obstacle => 
+                        Math.abs(obstacle.x - laneX) < 50 && obstacle.y < 200
+                    );
+                });
+                
+                // If no lanes are available, don't spawn (wait for next frame)
+                if (availableLanes.length === 0) return;
+                
+                const obstacle = {
+                    x: availableLanes[Math.floor(Math.random() * availableLanes.length)],
+                    y: -100,
+                    width: 45,
+                    height: 80,
+                    speed: (150 + Math.random() * 100) * this.gameSpeed,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                };
+                
+                this.obstacles.push(obstacle);
+            }
+            
+            updatePlayer(deltaTime) {
+                const moveSpeed = this.player.speed * (deltaTime / 1000);
+                
+                if ((this.keys['ArrowLeft'] || this.keys['KeyA']) && this.player.x > 150) {
+                    this.player.x -= moveSpeed;
+                }
+                if ((this.keys['ArrowRight'] || this.keys['KeyD']) && this.player.x < this.canvas.width - 200) {
+                    this.player.x += moveSpeed;
+                }
+                if ((this.keys['ArrowUp'] || this.keys['KeyW']) && this.player.y > 0) {
+                    this.player.y -= moveSpeed;
+                }
+                if ((this.keys['ArrowDown'] || this.keys['KeyS']) && this.player.y < this.canvas.height - this.player.height) {
+                    this.player.y += moveSpeed;
+                }
+            }
+            
+            updateObstacles(deltaTime) {
+                for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = this.obstacles[i];
+                    const oldY = obstacle.y;
+                    obstacle.y += obstacle.speed * (deltaTime / 1000);
+                    
+                    // Check for collision with other obstacles and maintain spacing
+                    for (let j = 0; j < this.obstacles.length; j++) {
+                        if (i !== j) {
+                            const other = this.obstacles[j];
+                            const sameLane = Math.abs(obstacle.x - other.x) < 50;
+                            const tooClose = Math.abs(obstacle.y - other.y) < 120; // Minimum spacing of 120px
+                            
+                            if (sameLane && tooClose) {
+                                // If obstacles are too close in the same lane, slow down the faster one
+                                if (obstacle.y > other.y) {
+                                    obstacle.y = oldY; // Don't move this frame
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (obstacle.y > this.canvas.height) {
+                        this.obstacles.splice(i, 1);
+                        this.score += 50; // 50 points for dodging each car (increased bonus)
+                        
+                        // Level progression - every 300 points now (adjusted for very fast scoring)
+                        if (this.score > 0 && this.score % 300 === 0) {
+                            this.level++;
+                            this.gameSpeed += 0.2;
+                            this.spawnInterval = Math.max(800, this.spawnInterval - 50);
+                        }
+                        
+                        this.updateHUD();
+                    }
+                }
+            }
+            
+            checkCollisions() {
+                for (const obstacle of this.obstacles) {
+                    if (this.player.x < obstacle.x + obstacle.width &&
+                        this.player.x + this.player.width > obstacle.x &&
+                        this.player.y < obstacle.y + obstacle.height &&
+                        this.player.y + this.player.height > obstacle.y) {
+                        this.gameOver();
+                        return;
+                    }
+                }
+            }
+            
+            gameOver() {
+                this.gameState = 'gameOver';
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalLevel').textContent = this.level;
+                this.gameOverScreen.classList.remove('hidden');
+                this.pauseButton.classList.add('hidden');
+                this.pauseScreen.classList.add('hidden');
+                this.countdownScreen.classList.add('hidden');
+            }
+            
+            drawRoad() {
+                // Road surface
+                const roadGradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
+                roadGradient.addColorStop(0, '#2d5016');
+                roadGradient.addColorStop(0.25, '#404040');
+                roadGradient.addColorStop(0.75, '#404040');
+                roadGradient.addColorStop(1, '#2d5016');
+                
+                this.ctx.fillStyle = roadGradient;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Road lanes
+                this.ctx.fillStyle = '#333333';
+                this.ctx.fillRect(150, 0, 500, this.canvas.height);
+                
+                // Lane dividers
+                this.ctx.fillStyle = '#ffff00';
+                this.ctx.lineWidth = 3;
+                
+                const lineHeight = 30;
+                const lineSpacing = 60;
+                
+                // Center line
+                for (let y = (this.roadOffset % lineSpacing) - lineHeight; y < this.canvas.height; y += lineSpacing) {
+                    this.ctx.fillRect(this.canvas.width / 2 - 2, y, 4, lineHeight);
+                }
+                
+                // Left lane line
+                for (let y = (this.roadOffset % lineSpacing) - lineHeight; y < this.canvas.height; y += lineSpacing) {
+                    this.ctx.fillRect(275, y, 4, lineHeight);
+                }
+                
+                // Right lane line
+                for (let y = (this.roadOffset % lineSpacing) - lineHeight; y < this.canvas.height; y += lineSpacing) {
+                    this.ctx.fillRect(525, y, 4, lineHeight);
+                }
+                
+                // Road borders
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.fillRect(145, 0, 5, this.canvas.height);
+                this.ctx.fillRect(650, 0, 5, this.canvas.height);
+            }
+            
+            drawPlayer() {
+                this.ctx.save();
+                this.ctx.translate(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2);
+                
+                // Car body
+                this.ctx.fillStyle = '#1a237e';
+                this.ctx.fillRect(-this.player.width / 2, -this.player.height / 2, this.player.width, this.player.height);
+                
+                // Car details
+                this.ctx.fillStyle = '#3f51b5';
+                this.ctx.fillRect(-this.player.width / 2 + 5, -this.player.height / 2 + 10, this.player.width - 10, this.player.height / 2 - 5);
+                
+                // Windshield
+                this.ctx.fillStyle = '#64b5f6';
+                this.ctx.fillRect(-this.player.width / 2 + 8, -this.player.height / 2 + 12, this.player.width - 16, 15);
+                
+                // Wheels
+                this.ctx.fillStyle = '#212121';
+                this.ctx.fillRect(-this.player.width / 2 - 3, -this.player.height / 2 + 15, 6, 12);
+                this.ctx.fillRect(this.player.width / 2 - 3, -this.player.height / 2 + 15, 6, 12);
+                this.ctx.fillRect(-this.player.width / 2 - 3, this.player.height / 2 - 27, 6, 12);
+                this.ctx.fillRect(this.player.width / 2 - 3, this.player.height / 2 - 27, 6, 12);
+                
+                // Headlights
+                this.ctx.fillStyle = '#ffeb3b';
+                this.ctx.fillRect(-this.player.width / 2 + 8, -this.player.height / 2 - 2, 8, 5);
+                this.ctx.fillRect(this.player.width / 2 - 16, -this.player.height / 2 - 2, 8, 5);
+                
+                this.ctx.restore();
+            }
+            
+            drawObstacle(obstacle) {
+                this.ctx.save();
+                this.ctx.translate(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2);
+                
+                // Car body
+                this.ctx.fillStyle = obstacle.color;
+                this.ctx.fillRect(-obstacle.width / 2, -obstacle.height / 2, obstacle.width, obstacle.height);
+                
+                // Car roof
+                this.ctx.fillStyle = this.darkenColor(obstacle.color, 0.3);
+                this.ctx.fillRect(-obstacle.width / 2 + 4, -obstacle.height / 2 + 8, obstacle.width - 8, obstacle.height / 2 - 4);
+                
+                // Wheels
+                this.ctx.fillStyle = '#212121';
+                this.ctx.fillRect(-obstacle.width / 2 - 2, -obstacle.height / 2 + 12, 4, 10);
+                this.ctx.fillRect(obstacle.width / 2 - 2, -obstacle.height / 2 + 12, 4, 10);
+                this.ctx.fillRect(-obstacle.width / 2 - 2, obstacle.height / 2 - 22, 4, 10);
+                this.ctx.fillRect(obstacle.width / 2 - 2, obstacle.height / 2 - 22, 4, 10);
+                
+                this.ctx.restore();
+            }
+            
+            darkenColor(color, factor) {
+                const num = parseInt(color.replace("#", ""), 16);
+                const amt = Math.round(255 * factor);
+                const R = (num >> 16) - amt;
+                const G = (num >> 8 & 0x00FF) - amt;
+                const B = (num & 0x0000FF) - amt;
+                return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+                    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+                    (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+            }
+            
+            updateHUD() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('level').textContent = this.level;
+            }
+            
+            update(deltaTime) {
+                if (this.gameState !== 'playing') return;
+                
+                this.roadOffset += 200 * this.gameSpeed * (deltaTime / 1000);
+                
+                // Very fast continuous scoring based on survival time
+                this.scoreTimer += deltaTime;
+                if (this.scoreTimer >= 10) { // Add 1 point every 10ms (0.01 seconds) - ultra fast!
+                    this.score += 1;
+                    this.scoreTimer = 0;
+                    this.updateHUD();
+                }
+                
+                this.updatePlayer(deltaTime);
+                this.updateObstacles(deltaTime);
+                
+                // Spawn obstacles
+                if (Date.now() - this.lastSpawn > this.spawnInterval) {
+                    this.spawnObstacle();
+                    this.lastSpawn = Date.now();
+                }
+                
+                this.checkCollisions();
+            }
+            
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.drawRoad();
+                this.drawPlayer();
+                this.obstacles.forEach(obstacle => this.drawObstacle(obstacle));
+            }
+            
+            gameLoop(currentTime = 0) {
+                const deltaTime = currentTime - this.lastTime;
+                this.lastTime = currentTime;
+                
+                this.update(deltaTime);
+                this.draw();
+                
+                requestAnimationFrame((time) => this.gameLoop(time));
+            }
+        }
+        
+        // Start the game when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new HighwayRush();
+        });
+    </script>
+</body>
+</html>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const speedElement = document.getElementById('speed');
+        const levelElement = document.getElementById('level');
+        const highScoreElement = document.getElementById('highScore');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startScreen = document.getElementById('startScreen');
+        const finalScoreElement = document.getElementById('finalScore');
+        const newHighScoreElement = document.getElementById('newHighScore');
+        const powerUpIndicator = document.getElementById('powerUpIndicator');
+
+        // Game state
+        let gameState = 'start'; // 'start', 'playing', 'paused', 'gameOver'
+        let score = 0;
+        let level = 1;
+        let gameSpeed = 1;
+        let roadOffset = 0;
+        let lastTime = 0;
+        let highScore = localStorage.getItem('carDodgeHighScore') || 0;
+        highScoreElement.textContent = highScore;
+
+        // Player car (Enhanced Rolls-Royce)
+        const player = {
+            x: canvas.width / 2 - 30,
+            y: canvas.height - 120,
+            width: 60,
+            height: 100,
+            speed: 350,
+            shielded: false,
+            shieldTime: 0,
+            boosting: false,
+            boostTime: 0,
+            maxBoost: 3000,
+            boostCooldown: 0,
+            lives: 3
+        };
+
+        // Game objects
+        const obstacles = [];
+        const powerUps = [];
+        const particles = [];
+        let obstacleSpawnTimer = 0;
+        let powerUpSpawnTimer = 0;
+        const obstacleSpawnInterval = 1200;
+        const powerUpSpawnInterval = 8000;
+
+        // Audio context for sound effects
+        let audioContext;
+        let audioInitialized = false;
+
+        // Input handling
+        const keys = {};
+        let touchStartY = null;
+        let touchStartX = null;
+
+        // Initialize audio context
+        function initAudio() {
+            if (!audioInitialized) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioInitialized = true;
+            }
+        }
+
+        // Sound generation functions
+        function playSound(frequency, duration, type = 'sine') {
+            if (!audioInitialized) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function playPowerUpSound() {
+            playSound(523, 0.3, 'square'); // C note
+            setTimeout(() => playSound(659, 0.3, 'square'), 100); // E note
+            setTimeout(() => playSound(784, 0.3, 'square'), 200); // G note
+        }
+
+        function playCrashSound() {
+            playSound(150, 0.5, 'sawtooth');
+            setTimeout(() => playSound(100, 0.5, 'sawtooth'), 100);
+        }
+
+        function playBoostSound() {
+            playSound(400, 0.2, 'triangle');
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            initAudio();
+            keys[e.code] = true;
+            
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (gameState === 'start') {
+                    startGame();
+                } else if (gameState === 'playing') {
+                    activateBoost();
+                }
+            }
+            
+            if (e.code === 'KeyP' && gameState === 'playing') {
+                pauseGame();
+            }
+            
+            if (e.code === 'KeyR' && gameState === 'gameOver') {
+                startGame();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Touch controls for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            initAudio();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            touchStartX = touch.clientX - rect.left;
+            touchStartY = touch.clientY - rect.top;
+            
+            if (gameState === 'start') startGame();
+            if (gameState === 'playing') activateBoost();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (gameState !== 'playing' || !touchStartX) return;
+            
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const currentX = touch.clientX - rect.left;
+            const currentY = touch.clientY - rect.top;
+            
+            const deltaX = currentX - touchStartX;
+            const deltaY = currentY - touchStartY;
+            
+            player.x += deltaX * 0.5;
+            player.y += deltaY * 0.5;
+            
+            // Keep player on road
+            player.x = Math.max(110, Math.min(canvas.width - 170, player.x));
+            player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+            
+            touchStartX = currentX;
+            touchStartY = currentY;
+        });
+
+        canvas.addEventListener('touchend', () => {
+            touchStartX = null;
+            touchStartY = null;
+        });
+
+        // Particle system
+        class Particle {
+            constructor(x, y, color, velocity) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.velocity = velocity;
+                this.life = 1;
+                this.decay = Math.random() * 0.02 + 0.01;
+                this.size = Math.random() * 4 + 2;
+            }
+
+            update(deltaTime) {
+                this.x += this.velocity.x * (deltaTime / 1000) * 60;
+                this.y += this.velocity.y * (deltaTime / 1000) * 60;
+                this.life -= this.decay;
+                this.size *= 0.99;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            isDead() {
+                return this.life <= 0 || this.size <= 0.5;
+            }
+        }
+
+        function createExplosion(x, y, color = '#ff4444') {
+            for (let i = 0; i < 20; i++) {
+                const angle = (Math.PI * 2 * i) / 20;
+                const velocity = {
+                    x: Math.cos(angle) * (Math.random() * 100 + 50),
+                    y: Math.sin(angle) * (Math.random() * 100 + 50)
+                };
+                particles.push(new Particle(x, y, color, velocity));
+            }
+        }
+
+        function createScoreParticles(x, y) {
+            for (let i = 0; i < 10; i++) {
+                const velocity = {
+                    x: (Math.random() - 0.5) * 100,
+                    y: Math.random() * -100 - 50
+                };
+                particles.push(new Particle(x, y, '#00ff00', velocity));
+            }
+        }
+
+        // Game functions
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            level = 1;
+            gameSpeed = 1;
+            roadOffset = 0;
+            player.x = canvas.width / 2 - 30;
+            player.y = canvas.height - 120;
+            player.shielded = false;
+            player.shieldTime = 0;
+            player.boosting = false;
+            player.boostTime = 0;
+            player.boostCooldown = 0;
+            player.lives = 3;
+            obstacles.length = 0;
+            powerUps.length = 0;
+            particles.length = 0;
+            obstacleSpawnTimer = 0;
+            powerUpSpawnTimer = 0;
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            powerUpIndicator.style.opacity = '0';
+        }
+
+        function pauseGame() {
+            gameState = gameState === 'playing' ? 'paused' : 'playing';
+        }
+
+        function activateBoost() {
+            if (player.boostCooldown <= 0 && !player.boosting) {
+                player.boosting = true;
+                player.boostTime = 1000; // 1 second boost
+                player.boostCooldown = 3000; // 3 second cooldown
+                playBoostSound();
+            }
+        }
+
+        function spawnObstacle() {
+            const colors = ['#dc143c', '#32cd32', '#ffa500', '#9370db', '#ff1493'];
+            const types = ['normal', 'fast', 'wide', 'tall'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            let obstacle = {
+                x: Math.random() * (canvas.width - 350) + 175,
+                y: -80,
+                speed: (120 + Math.random() * 80) * gameSpeed,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                type: type
+            };
+
+            switch (type) {
+                case 'normal':
+                    obstacle.width = 50;
+                    obstacle.height = 80;
+                    break;
+                case 'fast':
+                    obstacle.width = 45;
+                    obstacle.height = 70;
+                    obstacle.speed *= 1.5;
+                    obstacle.color = '#ff0000';
+                    break;
+                case 'wide':
+                    obstacle.width = 70;
+                    obstacle.height = 80;
+                    obstacle.speed *= 0.8;
+                    break;
+                case 'tall':
+                    obstacle.width = 50;
+                    obstacle.height = 120;
+                    obstacle.speed *= 0.9;
+                    break;
+            }
+
+            obstacles.push(obstacle);
+        }
+
+        function spawnPowerUp() {
+            const types = ['shield', 'score', 'slow'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            const powerUp = {
+                x: Math.random() * (canvas.width - 350) + 175,
+                y: -40,
+                width: 30,
+                height: 30,
+                speed: 100 * gameSpeed,
+                type: type,
+                pulseTime: 0
+            };
+
+            powerUps.push(powerUp);
+        }
+
+        function updatePlayer(deltaTime) {
+            const baseSpeed = player.speed * (deltaTime / 1000);
+            const moveSpeed = player.boosting ? baseSpeed * 1.5 : baseSpeed;
+            
+            // Movement
+            if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 110) {
+                player.x -= moveSpeed;
+            }
+            if ((keys['ArrowRight'] || keys['KeyD']) && player.x < canvas.width - 170) {
+                player.x += moveSpeed;
+            }
+            if ((keys['ArrowUp'] || keys['KeyW']) && player.y > 0) {
+                player.y -= moveSpeed;
+            }
+            if ((keys['ArrowDown'] || keys['KeyS']) && player.y < canvas.height - player.height) {
+                player.y += moveSpeed;
+            }
+
+            // Update boost
+            if (player.boosting) {
+                player.boostTime -= deltaTime;
+                if (player.boostTime <= 0) {
+                    player.boosting = false;
+                }
+            }
+
+            if (player.boostCooldown > 0) {
+                player.boostCooldown -= deltaTime;
+            }
+
+            // Update shield
+            if (player.shielded) {
+                player.shieldTime -= deltaTime;
+                if (player.shieldTime <= 0) {
+                    player.shielded = false;
+                    powerUpIndicator.style.opacity = '0';
+                }
+            }
+        }
+
+        function updateObstacles(deltaTime) {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                obstacle.y += obstacle.speed * (deltaTime / 1000);
+                
+                if (obstacle.y > canvas.height) {
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    
+                    // Level progression
+                    if (score > 0 && score % 200 === 0) {
+                        level++;
+                        gameSpeed += 0.3;
+                        createScoreParticles(canvas.width / 2, 100);
+                        playPowerUpSound();
+                        scoreElement.classList.add('score-flash');
+                        setTimeout(() => scoreElement.classList.remove('score-flash'), 500);
+                    }
+                }
+            }
+        }
+
+        function updatePowerUps(deltaTime) {
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const powerUp = powerUps[i];
+                powerUp.y += powerUp.speed * (deltaTime / 1000);
+                powerUp.pulseTime += deltaTime;
+                
+                if (powerUp.y > canvas.height) {
+                    powerUps.splice(i, 1);
+                }
+            }
+        }
+
+        function updateParticles(deltaTime) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                particle.update(deltaTime);
+                
+                if (particle.isDead()) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function checkCollisions() {
+            // Power-up collisions
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const powerUp = powerUps[i];
+                if (player.x < powerUp.x + powerUp.width &&
+                    player.x + player.width > powerUp.x &&
+                    player.y < powerUp.y + powerUp.height &&
+                    player.y + player.height > powerUp.y) {
+                    
+                    powerUps.splice(i, 1);
+                    playPowerUpSound();
+                    createScoreParticles(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2);
+                    
+                    switch (powerUp.type) {
+                        case 'shield':
+                            player.shielded = true;
+                            player.shieldTime = 5000;
+                            powerUpIndicator.textContent = 'Shield Active!';
+                            powerUpIndicator.style.opacity = '1';
+                            break;
+                        case 'score':
+                            score += 50;
+                            break;
+                        case 'slow':
+                            gameSpeed = Math.max(0.5, gameSpeed - 0.3);
+                            setTimeout(() => { gameSpeed += 0.3; }, 3000);
+                            break;
+                    }
+                }
+            }
+
+            // Obstacle collisions
+            for (const obstacle of obstacles) {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    
+                    if (player.shielded) {
+                        // Destroy obstacle with shield
+                        const index = obstacles.indexOf(obstacle);
+                        obstacles.splice(index, 1);
+                        createExplosion(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2, '#00ff00');
+                        playPowerUpSound();
+                        score += 25;
+                    } else {
+                        // Player hit
+                        createExplosion(player.x + player.width / 2, player.y + player.height / 2);
+                        playCrashSound();
+                        gameOver();
+                    }
+                    return;
+                }
+            }
+        }
+
+        function gameOver() {
+            gameState = 'gameOver';
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('carDodgeHighScore', highScore);
+                highScoreElement.textContent = highScore;
+                newHighScoreElement.style.display = 'block';
+            } else {
+                newHighScoreElement.style.display = 'none';
+            }
+            
+            finalScoreElement.textContent = score;
+            gameOverScreen.style.display = 'block';
+        }
+
+        // Enhanced drawing functions
+        function drawRoad() {
+            // Animated road surface with texture
+            const gradient = ctx.createLinearGradient(100, 0, canvas.width - 100, 0);
+            gradient.addColorStop(0, '#2c2c2c');
+            gradient.addColorStop(0.5, '#404040');
+            gradient.addColorStop(1, '#2c2c2c');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(100, 0, canvas.width - 200, canvas.height);
+            
+            // Moving road lines with glow effect
+            ctx.shadowColor = '#ffff00';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#ffff00';
+            const lineHeight = 40;
+            const lineSpacing = 80;
+            
+            for (let y = (roadOffset % lineSpacing) - lineHeight; y < canvas.height; y += lineSpacing) {
+                ctx.fillRect(canvas.width / 2 - 6, y, 12, lineHeight);
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Enhanced road borders with glow
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 5;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(95, 0, 10, canvas.height);
+            ctx.fillRect(canvas.width - 105, 0, 10, canvas.height);
+            ctx.shadowBlur = 0;
+            
+            // Road side decorations
+            ctx.fillStyle = '#1a5a1a';
+            ctx.fillRect(0, 0, 95, canvas.height);
+            ctx.fillRect(canvas.width - 95, 0, 95, canvas.height);
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            
+            // Shield effect
+            if (player.shielded) {
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(0, 0, player.width / 2 + 15, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+            
+            // Boost effect
+            if (player.boosting) {
+                ctx.shadowColor = '#ff6600';
+                ctx.shadowBlur = 20;
+            }
+            
+            // Enhanced car body (Rolls-Royce style)
+            ctx.fillStyle = '#0a0a1a';
+            ctx.beginPath();
+            ctx.roundRect(-player.width / 2, -player.height / 2, player.width, player.height, 10);
+            ctx.fill();
+            
+            // Chrome accents
+            ctx.fillStyle = '#c0c0c0';
+            ctx.beginPath();
+            ctx.roundRect(-player.width / 2 + 2, -player.height / 2 + 2, player.width - 4, 8, 4);
+            ctx.fill();
+            
+            // Car roof with luxury details
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.roundRect(-player.width / 2 + 6, -player.height / 2 + 15, player.width - 12, player.height / 2, 8);
+            ctx.fill();
+            
+            // Premium windshield
+            const windshieldGradient = ctx.createLinearGradient(0, -player.height / 2 + 15, 0, -player.height / 2 + 35);
+            windshieldGradient.addColorStop(0, '#4a90e2');
+            windshieldGradient.addColorStop(1, '#2c5aa0');
+            ctx.fillStyle = windshieldGradient;
+            ctx.beginPath();
+            ctx.roundRect(-player.width / 2 + 10, -player.height / 2 + 18, player.width - 20, 22, 6);
+            ctx.fill();
+            
+            // Enhanced wheels with rims
+            ctx.fillStyle = '#1c1c1c';
+            ctx.beginPath();
+            ctx.ellipse(-18, -30, 8, 10, 0, 0, Math.PI * 2);
+            ctx.ellipse(18, -30, 8, 10, 0, 0, Math.PI * 2);
+            ctx.ellipse(-18, 30, 8, 10, 0, 0, Math.PI * 2);
+            ctx.ellipse(18, 30, 8, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Wheel rims
+            ctx.strokeStyle = '#silver';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(-18, -30, 5, 7, 0, 0, Math.PI * 2);
+            ctx.ellipse(18, -30, 5, 7, 0, 0, Math.PI * 2);
+            ctx.ellipse(-18, 30, 5, 7, 0, 0, Math.PI * 2);
+            ctx.ellipse(18, 30, 5, 7, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Luxury headlights with glow
+            ctx.shadowColor = '#ffffaa';
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = '#ffffdd';
+            ctx.beginPath();
+            ctx.ellipse(-15, -45, 6, 8, 0, 0, Math.PI * 2);
+            ctx.ellipse(15, -45, 6, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Rolls-Royce style grille
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#silver';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.rect(-10, -48, 20, 10);
+            ctx.stroke();
+            
+            // Grille pattern
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-8 + i * 4, -48);
+                ctx.lineTo(-8 + i * 4, -38);
+                ctx.stroke();
+            }
+            
+            ctx.restore();
+        }
+
+        function drawObstacle(obstacle) {
+            ctx.save();
+            ctx.translate(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2);
+            
+            // Type-specific effects
+            if (obstacle.type === 'fast') {
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 10;
+            }
+            
+            // Enhanced enemy car body
+            const bodyGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, obstacle.width / 2);
+            bodyGradient.addColorStop(0, obstacle.color);
+            bodyGradient.addColorStop(1, obstacle.color + '80');
+            ctx.fillStyle = bodyGradient;
+            ctx.beginPath();
+            ctx.roundRect(-obstacle.width / 2, -obstacle.height / 2, obstacle.width, obstacle.height, 8);
+            ctx.fill();
+            
+            // Car details based on type
+            const roofColor = obstacle.color === '#dc143c' ? '#8b0000' : '#2c2c54';
+            ctx.fillStyle = roofColor;
+            ctx.beginPath();
+            ctx.roundRect(-obstacle.width / 2 + 4, -obstacle.height / 2 + 8, obstacle.width - 8, obstacle.height / 3, 6);
+            ctx.fill();
+            
+            // Enhanced wheels
+            ctx.fillStyle = '#1c1c1c';
+            const wheelSize = obstacle.width * 0.15;
+            ctx.beginPath();
+            ctx.ellipse(-obstacle.width / 2 + wheelSize, -obstacle.height / 2 + wheelSize, wheelSize, wheelSize * 1.2, 0, 0, Math.PI * 2);
+            ctx.ellipse(obstacle.width / 2 - wheelSize, -obstacle.height / 2 + wheelSize, wheelSize, wheelSize * 1.2, 0, 0, Math.PI * 2);
+            ctx.ellipse(-obstacle.width / 2 + wheelSize, obstacle.height / 2 - wheelSize, wheelSize, wheelSize * 1.2, 0, 0, Math.PI * 2);
+            ctx.ellipse(obstacle.width / 2 - wheelSize, obstacle.height / 2 - wheelSize, wheelSize, wheelSize * 1.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+
+        function drawPowerUp(powerUp) {
+            ctx.save();
+            ctx.translate(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2);
+            
+            const pulse = Math.sin(powerUp.pulseTime / 200) * 0.2 + 1;
+            ctx.scale(pulse, pulse);
+            
+            // Glow effect
+            ctx.shadowBlur = 20;
+            
+            switch (powerUp.type) {
+                case 'shield':
+                    ctx.shadowColor = '#00ffff';
+                    ctx.fillStyle = '#00ffff';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, powerUp.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '16px Arial';
+                    ctx.fillText('🛡️', -8, 5);
+                    break;
+                case 'score':
+                    ctx.shadowColor = '#ffff00';
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, powerUp.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.font = '16px Arial';
+                    ctx.fillText('⭐', -8, 5);
+                    break;
+                case 'slow':
+                    ctx.shadowColor = '#00ff00';
+                    ctx.fillStyle = '#00ff00';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, powerUp.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.font = '16px Arial';
+                    ctx.fillText('⏰', -8, 5);
+                    break;
+            }
+            
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            particles.forEach(particle => particle.draw());
+        }
+
+        function drawUI() {
+            // Boost meter
+            if (player.boostCooldown > 0 || player.boosting) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(canvas.width - 150, 20, 120, 20);
+                ctx.strokeStyle = '#ffffff';
+                ctx.strokeRect(canvas.width - 150, 20, 120, 20);
+                
+                const boostPercent = player.boosting ? 
+                    1 - (player.boostCooldown / 3000) : 
+                    Math.max(0, 1 - (player.boostCooldown / 3000));
+                
+                ctx.fillStyle = player.boosting ? '#ff6600' : '#00ff00';
+                ctx.fillRect(canvas.width - 148, 22, 116 * boostPercent, 16);
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px Arial';
+                ctx.fillText('BOOST', canvas.width - 140, 33);
+            }
+
+            // Shield timer
+            if (player.shielded) {
+                const shieldPercent = player.shieldTime / 5000;
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.7)';
+                ctx.fillRect(20, 120, 120 * shieldPercent, 10);
+                ctx.strokeStyle = '#00ffff';
+                ctx.strokeRect(20, 120, 120, 10);
+            }
+
+            // Pause indicator
+            if (gameState === 'paused') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                ctx.fillStyle = '#cccccc';
+                ctx.font = '24px Arial';
+                ctx.fillText('Press P to Resume', canvas.width / 2, canvas.height / 2 + 60);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        function updateUI() {
+            scoreElement.textContent = score;
+            speedElement.textContent = Math.floor(gameSpeed * 10) / 10;
+            levelElement.textContent = level;
+        }
+
+        function gameLoop(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            
+            if (gameState === 'playing') {
+                // Update road animation
+                roadOffset += 250 * gameSpeed * (deltaTime / 1000);
+                
+                // Update player
+                updatePlayer(deltaTime);
+                
+                // Spawn obstacles
+                obstacleSpawnTimer += deltaTime;
+                if (obstacleSpawnTimer >= obstacleSpawnInterval / gameSpeed) {
+                    spawnObstacle();
+                    obstacleSpawnTimer = 0;
+                }
+                
+                // Spawn power-ups
+                powerUpSpawnTimer += deltaTime;
+                if (powerUpSpawnTimer >= powerUpSpawnInterval) {
+                    spawnPowerUp();
+                    powerUpSpawnTimer = 0;
+                }
+                
+                // Update game objects
+                updateObstacles(deltaTime);
+                updatePowerUps(deltaTime);
+                updateParticles(deltaTime);
+                
+                // Check collisions
+                checkCollisions();
+            } else if (gameState === 'paused') {
+                updateParticles(deltaTime);
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw everything
+            drawRoad();
+            drawPlayer();
+            obstacles.forEach(drawObstacle);
+            powerUps.forEach(drawPowerUp);
+            drawParticles();
+            drawUI();
+            
+            // Update UI
+            updateUI();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize high score display
+        highScoreElement.textContent = highScore;
+
+        // Start the game loop
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
